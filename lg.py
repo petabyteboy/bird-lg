@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 # vim: ts=4
 ###
@@ -27,8 +27,8 @@ import subprocess
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import re
-from urllib2 import urlopen
-from urllib import quote, unquote
+from urllib.request import urlopen
+from urllib.parse import quote, unquote
 import json
 import random
 
@@ -68,7 +68,7 @@ def add_links(text):
     """Browser a string and replace ipv4, ipv6, as number, with a
     whois link """
 
-    if type(text) in [str, unicode]:
+    if type(text) in [str, str]:
         text = text.split("\n")
 
     ret_text = []
@@ -158,7 +158,7 @@ def bird_proxy(host, proto, service, query):
 
         try:
             f = urlopen(url, None, proxy_timeout)
-            resultat = f.read()
+            resultat = f.read().decode('utf-8')
             status = True                # retreive remote status
         except IOError:
             resultat = "Failed retreive url: %s" % url
@@ -186,6 +186,9 @@ def inject_commands():
         commands_dict[id] = text
     return dict(commands=commands, commands_dict=commands_dict)
 
+@app.context_processor
+def inject_all_host():
+    return dict(all_hosts="+".join(list(app.config["PROXY"].keys())))
 
 @app.route("/")
 def hello():
@@ -193,7 +196,6 @@ def hello():
         return redirect("/summary/all")
     else:
         return redirect("/summary/all/%s" % app.config.get("PROTO_DEFAULT", "ipv4"))
-
 
 def error_page(text):
     return render_template('error.html', errors=[text]), 500
@@ -461,9 +463,9 @@ def show_bgpmap():
     data = get_query()
     if not data:
         abort(400)
-
+        
     data = base64.b64decode(data)
-    data = json.loads(data)
+    data = json.loads(data.decode('utf-8'))
 
     graph = pydot.Dot('BGPMAP', graph_type='digraph')
 
@@ -509,7 +511,7 @@ def show_bgpmap():
                 e.set_label(label)
         return edges[edge_tuple]
 
-    for host, asmaps in data.iteritems():
+    for host, asmaps in data.items():
         add_node(host, label= "%s\r%s" % (host.upper(), app.config["DOMAIN"].upper()), shape="box", fillcolor="#F5A9A9")
 
         as_number = app.config["AS_NUMBER"].get(host, None)
@@ -521,8 +523,8 @@ def show_bgpmap():
     
     #colors = [ "#009e23", "#1a6ec1" , "#d05701", "#6f879f", "#939a0e", "#0e9a93", "#9a0e85", "#56d8e1" ]
     previous_as = None
-    hosts = data.keys()
-    for host, asmaps in data.iteritems():
+    hosts = list(data.keys())
+    for host, asmaps in data.items():
         first = True
         for asmap in asmaps:
             previous_as = host
@@ -613,7 +615,7 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
 
             peer_ip = expr2.group(1).strip()
             # Check if via line is a internal route
-            for rt_host, rt_ips in app.config["ROUTER_IP"].iteritems():
+            for rt_host, rt_ips in app.config["ROUTER_IP"].items():
                 # Special case for internal routing
                 if peer_ip in rt_ips:
                     paths.append([peer_protocol_name, rt_host])
@@ -744,7 +746,12 @@ def show_route(request_type, hosts, proto):
             detail[host] = add_links(res)
 
     if bgpmap:
-        detail = base64.b64encode(json.dumps(detail))
+        # in python3 b64encode() encodes a byte-like object in to bytes
+        # so the json string needs to be encoded to bytes and then the
+        # base64 result decoded back to a string again
+        detail = json.dumps(detail)
+        detail = base64.b64encode(detail.encode('utf-8'))
+        detail = detail.decode('utf-8')
 
     return render_template((bgpmap and 'bgpmap.html' or 'route.html'), detail=detail, command=command, expression=expression, errors=errors)
 
