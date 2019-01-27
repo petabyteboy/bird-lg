@@ -521,7 +521,9 @@ def show_bgpmap():
                         hop_label = ""
 
                 
-                add_node(_as, fillcolor=(first and "#F5A9A9" or "white"))
+                add_node(_as, fillcolor=("white"))
+                if first:
+                    nodes[_as].set_fillcolor("#F5A9A9")
                 if hop_label:
                     edge = add_edge(nodes[previous_as], nodes[_as], label=hop_label, fontsize="7")
                 else:
@@ -589,7 +591,8 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
             for rt_host, rt_ips in app.config["ROUTER_IP"].iteritems():
                 # Special case for internal routing
                 if peer_ip in rt_ips:
-                    path = [rt_host]
+                    paths.append([peer_protocol_name, rt_host])
+                    path = None
                     break
             else:
                 # ugly hack for good printing
@@ -605,8 +608,14 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
 
             if expr3.group(1).strip():
                 net_dest = expr3.group(1).strip()
+        
+        expr4 = re.search(r'^dev', line)
+        #handle on-link routes
+        if expr4:
+            paths.append([peer_protocol_name, net_dest])
+            path = None
 
-        if line.startswith("BGP.as_path:"):
+        if line.startswith("BGP.as_path:") and path:
             path.extend(line.replace("BGP.as_path:", "").strip().split(" "))
     
     if path:
