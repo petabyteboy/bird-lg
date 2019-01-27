@@ -688,7 +688,9 @@ def show_route(request_type, hosts, proto):
 
     detail = {}
     errors = []
-    for host in hosts.split("+"):
+    hosts = hosts.split("+")
+    allhosts = hosts[:]
+    for host in allhosts:
         ret, res = bird_command(host, proto, command)
         res = res.split("\n")
 
@@ -702,6 +704,15 @@ def show_route(request_type, hosts, proto):
 
         if bgpmap:
             detail[host] = build_as_tree_from_raw_bird_ouput(host, proto, res)
+            #for internal routes via hosts not selected
+            #add them to the list, but only show preferred route
+            if host not in hosts:
+                detail[host] = detail[host][:1]
+            for path in detail[host]:
+                if len(path) == 2:
+                    if (path[1] not in allhosts) and (path[1] in app.config["PROXY"]):
+                        allhosts.append(path[1])
+
         else:
             detail[host] = add_links(res)
 
