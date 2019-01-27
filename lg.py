@@ -145,6 +145,8 @@ def bird_proxy(host, proto, service, query):
         path = service
 
     proxyHost = app.config["PROXY"].get(host, "")
+    if isinstance(proxyHost, int):
+        proxyHost = "%s:%s" % (host, proxyHost)
 
     if not proxyHost:
         return False, 'Host "%s" invalid' % host
