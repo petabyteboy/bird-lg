@@ -123,7 +123,7 @@ def whois_command(query):
 def bird_command(host, proto, query):
     """Alias to bird_proxy for bird service"""
     if app.config.get("UNIFIED_DAEMON", False):
-        return bird_proxy(host, "ipv4", "bird", query)
+        return bird_proxy(host, app.config.get("PROTO_DEFAULT", "ipv4"), "bird", query)
     else:
         return bird_proxy(host, proto, "bird", query)
 
@@ -192,7 +192,7 @@ def hello():
     if app.config.get("UNIFIED_DAEMON", False):
         return redirect("/summary/all")
     else:
-        return redirect("/summary/all/ipv4")
+        return redirect("/summary/all/%s" % app.config.get("PROTO_DEFAULT", "ipv4"))
 
 
 def error_page(text):
@@ -234,7 +234,7 @@ SUMMARY_UNWANTED_PROTOS = ["Kernel", "Static", "Device", "BFD"]
 
 @app.route("/summary/<hosts>")
 @app.route("/summary/<hosts>/<proto>")
-def summary(hosts, proto="ipv4"):
+def summary(hosts, proto=app.config.get("PROTO_DEFAULT", "ipv4")):
     set_session("summary", hosts, proto, "")
     command = "show protocols"
 
@@ -286,8 +286,9 @@ def summary(hosts, proto="ipv4"):
     return render_template('summary.html', summary=summary, command=command, errors=errors)
 
 
+@app.route("/detail/<hosts>")
 @app.route("/detail/<hosts>/<proto>")
-def detail(hosts, proto):
+def detail(hosts, proto=app.config.get("PROTO_DEFAULT", "ipv4")):
     name = get_query()
 
     if not name:
@@ -318,8 +319,9 @@ def detail(hosts, proto):
     return render_template('detail.html', detail=detail, command=command, errors=errors)
 
 
+@app.route("/traceroute/<hosts>")
 @app.route("/traceroute/<hosts>/<proto>")
-def traceroute(hosts, proto):
+def traceroute(hosts, proto=app.config.get("PROTO_DEFAULT", "ipv4")):
     q = get_query()
 
     if not q:
@@ -361,43 +363,51 @@ def traceroute(hosts, proto):
     return render_template('traceroute.html', infos=infos, errors=errors)
 
 
+@app.route("/adv/<hosts>")
 @app.route("/adv/<hosts>/<proto>")
-def show_route_filter(hosts, proto):
+def show_route_filter(hosts, proto=app.config.get("PROTO_DEFAULT", "ipv4")):
     return show_route("adv", hosts, proto)
 
 
+@app.route("/adv_bgpmap/<hosts>")
 @app.route("/adv_bgpmap/<hosts>/<proto>")
-def show_route_filter_bgpmap(hosts, proto):
+def show_route_filter_bgpmap(hosts, proto=app.config.get("PROTO_DEFAULT", "ipv4")):
     return show_route("adv_bgpmap", hosts, proto)
 
 
+@app.route("/where/<hosts>")
 @app.route("/where/<hosts>/<proto>")
-def show_route_where(hosts, proto):
+def show_route_where(hosts, proto=app.config.get("PROTO_DEFAULT", "ipv4")):
     return show_route("where", hosts, proto)
 
 
+@app.route("/where_detail/<hosts>")
 @app.route("/where_detail/<hosts>/<proto>")
-def show_route_where_detail(hosts, proto):
+def show_route_where_detail(hosts, proto=app.config.get("PROTO_DEFAULT", "ipv4")):
     return show_route("where_detail", hosts, proto)
 
 
+@app.route("/where_bgpmap/<hosts>")
 @app.route("/where_bgpmap/<hosts>/<proto>")
-def show_route_where_bgpmap(hosts, proto):
+def show_route_where_bgpmap(hosts, proto=app.config.get("PROTO_DEFAULT", "ipv4")):
     return show_route("where_bgpmap", hosts, proto)
 
 
+@app.route("/prefix/<hosts>")
 @app.route("/prefix/<hosts>/<proto>")
-def show_route_for(hosts, proto):
+def show_route_for(hosts, proto=app.config.get("PROTO_DEFAULT", "ipv4")):
     return show_route("prefix", hosts, proto)
 
 
+@app.route("/prefix_detail/<hosts>")
 @app.route("/prefix_detail/<hosts>/<proto>")
-def show_route_for_detail(hosts, proto):
+def show_route_for_detail(hosts, proto=app.config.get("PROTO_DEFAULT", "ipv4")):
     return show_route("prefix_detail", hosts, proto)
 
 
+@app.route("/prefix_bgpmap/<hosts>")
 @app.route("/prefix_bgpmap/<hosts>/<proto>")
-def show_route_for_bgpmap(hosts, proto):
+def show_route_for_bgpmap(hosts, proto=app.config.get("PROTO_DEFAULT", "ipv4")):
     return show_route("prefix_bgpmap", hosts, proto)
 
 
