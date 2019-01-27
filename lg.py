@@ -187,14 +187,12 @@ def inject_commands():
     return dict(commands=commands, commands_dict=commands_dict)
 
 
-@app.context_processor
-def inject_all_host():
-    return dict(all_hosts="+".join(app.config["PROXY"].keys()))
-
-
 @app.route("/")
 def hello():
-    return redirect("/summary/%s/ipv4" % "+".join(app.config["PROXY"].keys()))
+    if app.config.get("UNIFIED_DAEMON", False):
+        return redirect("/summary/all")
+    else:
+        return redirect("/summary/all/ipv4")
 
 
 def error_page(text):
@@ -237,13 +235,15 @@ SUMMARY_UNWANTED_PROTOS = ["Kernel", "Static", "Device", "BFD"]
 @app.route("/summary/<hosts>")
 @app.route("/summary/<hosts>/<proto>")
 def summary(hosts, proto="ipv4"):
-
     set_session("summary", hosts, proto, "")
     command = "show protocols"
 
     summary = {}
     errors = []
-    for host in hosts.split("+"):
+    hosts = hosts.split("+")
+    if hosts == ["all"]:
+        hosts = app.config["PROXY"].keys()
+    for host in hosts:
         ret, res = bird_command(host, proto, command)
         res = res.split("\n")
 
@@ -298,7 +298,10 @@ def detail(hosts, proto):
 
     detail = {}
     errors = []
-    for host in hosts.split("+"):
+    hosts = hosts.split("+")
+    if hosts == ["all"]:
+        hosts = app.config["PROXY"].keys()
+    for host in hosts:
         ret, res = bird_command(host, proto, command)
         res = res.split("\n")
 
@@ -344,7 +347,10 @@ def traceroute(hosts, proto):
 
     errors = []
     infos = {}
-    for host in hosts.split("+"):
+    hosts = hosts.split("+")
+    if hosts == ["all"]:
+        hosts = app.config["PROXY"].keys()
+    for host in hosts:
         status, resultat = bird_proxy(host, proto, "traceroute", q)
         if status is False:
             errors.append("%s" % resultat)
@@ -689,6 +695,8 @@ def show_route(request_type, hosts, proto):
     detail = {}
     errors = []
     hosts = hosts.split("+")
+    if hosts == ["all"]:
+        hosts = app.config["PROXY"].keys()
     allhosts = hosts[:]
     for host in allhosts:
         ret, res = bird_command(host, proto, command)
