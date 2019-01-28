@@ -119,7 +119,11 @@
 			request_type = "{{session.request_type}}";
 request_args = "{{session.request_args}}";
 hosts = "{{session.hosts}}";
+{% if config.UNIFIED_DAEMON %}
+proto = ""
+{% else %}
 proto = "{{session.proto}}";
+{% endif %}
 history_query = {{session.history|tojson|safe}};
 		</script>
 		<script type="text/javascript" src="{{url_for('static', filename='js/lg.js') }}"></script>
