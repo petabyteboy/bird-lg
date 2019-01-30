@@ -332,9 +332,16 @@ def traceroute(hosts, proto=app.config.get("PROTO_DEFAULT", "ipv4")):
     if app.config.get("UNIFIED_DAEMON", False):
         if not ip_is_valid(q):
             try:
-                q = resolve_any(q)
+                if app.config.get("UNIFIED_TRACEROUTE_IPV6", True):
+                    q = resolve_any(q)
+                else:
+                    q = resolve(q, "A")
             except:
                 return error_page("%s is unresolvable" % q)
+        if ipv6_is_valid(q):
+            proto = "ipv6"
+        else:
+            proto = "ipv4"
     else:
         if proto == "ipv6" and not ipv6_is_valid(q):
             try:
