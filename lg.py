@@ -314,7 +314,7 @@ def detail(hosts, proto=app.config.get("PROTO_DEFAULT", "ipv4")):
             errors.append("%s: bird command failed with error, %s" % (host, "\n".join(res)))
             continue
 
-        detail[host] = {"status": res[1], "description": add_links(res[2:])}
+        detail[host] = {"status": res[1], "description": add_links(res[2:]).decode("utf-8")}
 
     return render_template('detail.html', detail=detail, command=command, errors=errors)
 
