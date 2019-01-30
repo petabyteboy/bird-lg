@@ -18,7 +18,7 @@
 			<div class="collapse navbar-collapse" id="navbarSupportedContent">
 				<a class="navbar-brand" href="/">{{config.DOMAIN|capitalize}}</a>
 				<ul class="nav nav-pills">
-					<li class="nav-item hosts mr-1"><a class="nav-link" id="{{all_hosts}}" href="#">all</a></li>
+					<li class="nav-item hosts mr-1"><a class="nav-link" id="all" href="#">all</a></li>
 
 					{% for host in config.PROXY %}
 					<li class="nav-item hosts mr-1"><a class="nav-link" id="{{host}}" href="#">{{host}}</a></li>
@@ -76,7 +76,7 @@
 						<div class="list-group history">
 							{% for hosts, proto, request_type, request_args in session.history %}
 							<a class="list-group-item list-group-item-action {% if loop.first %}active{% endif %}"
-              href="/{{ [request_type, hosts, proto]|join("/") }}{% if request_args %}?q={{request_args}}{% endif %}">
+	  href="/{{ [request_type, hosts]|join("/") }}{% if not config.UNIFIED_DAEMON %}/{{proto}}{% endif %}{% if request_args %}?q={{request_args}}{% endif %}">
                 {{hosts}}{% if not config.UNIFIED_DAEMON %}/{{proto}}{% endif %}: {{ commands_dict[request_type]|replace("...", request_args) }}
               </a>
 
@@ -119,7 +119,11 @@
 			request_type = "{{session.request_type}}";
 request_args = "{{session.request_args}}";
 hosts = "{{session.hosts}}";
+{% if config.UNIFIED_DAEMON %}
+proto = ""
+{% else %}
 proto = "{{session.proto}}";
+{% endif %}
 history_query = {{session.history|tojson|safe}};
 		</script>
 		<script type="text/javascript" src="{{url_for('static', filename='js/lg.js') }}"></script>

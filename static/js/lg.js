@@ -5,7 +5,10 @@ function change_url(loc){
 }
 
 function reload(){
-	loc = "/" + request_type + "/" + hosts + "/" + proto;
+	loc = "/" + request_type + "/" + hosts;
+	if(proto){
+		loc += "/" + proto;
+	}
 	if (request_type != "summary" ){
 		if( request_args != undefined && request_args != ""){
 			loc = loc + "?q=" + encodeURIComponent(request_args);
@@ -23,7 +26,9 @@ function update_view(){
 
 	$(".navbar li").removeClass('active');
 
-	$("a#"+proto+".proto").addClass('active');
+	if(proto){
+		$("a#"+proto+".proto").addClass('active');
+	}
 	$(".hosts a[id='"+hosts+"']").addClass('active');
 	$(".request_type a#"+request_type).parent().addClass('active');
 

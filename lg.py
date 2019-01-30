@@ -123,7 +123,7 @@ def whois_command(query):
 def bird_command(host, proto, query):
     """Alias to bird_proxy for bird service"""
     if app.config.get("UNIFIED_DAEMON", False):
-        return bird_proxy(host, "ipv4", "bird", query)
+        return bird_proxy(host, app.config.get("PROTO_DEFAULT", "ipv4"), "bird", query)
     else:
         return bird_proxy(host, proto, "bird", query)
 
@@ -145,6 +145,8 @@ def bird_proxy(host, proto, service, query):
         path = service
 
     proxyHost = app.config["PROXY"].get(host, "")
+    if isinstance(proxyHost, int):
+        proxyHost = "%s:%s" % (host, proxyHost)
 
     if not proxyHost:
         return False, 'Host "%s" invalid' % host
@@ -185,14 +187,12 @@ def inject_commands():
     return dict(commands=commands, commands_dict=commands_dict)
 
 
-@app.context_processor
-def inject_all_host():
-    return dict(all_hosts="+".join(app.config["PROXY"].keys()))
-
-
 @app.route("/")
 def hello():
-    return redirect("/summary/%s/ipv4" % "+".join(app.config["PROXY"].keys()))
+    if app.config.get("UNIFIED_DAEMON", False):
+        return redirect("/summary/all")
+    else:
+        return redirect("/summary/all/%s" % app.config.get("PROTO_DEFAULT", "ipv4"))
 
 
 def error_page(text):
@@ -230,18 +230,20 @@ def whois():
     return jsonify(output=output, title=query)
 
 
-SUMMARY_UNWANTED_PROTOS = ["Kernel", "Static", "Device"]
+SUMMARY_UNWANTED_PROTOS = ["Kernel", "Static", "Device", "BFD", "Direct"]
 
 @app.route("/summary/<hosts>")
 @app.route("/summary/<hosts>/<proto>")
 def summary(hosts, proto="ipv4"):
-
     set_session("summary", hosts, proto, "")
     command = "show protocols"
 
     summary = {}
     errors = []
-    for host in hosts.split("+"):
+    hosts = hosts.split("+")
+    if hosts == ["all"]:
+        hosts = app.config["PROXY"].keys()
+    for host in hosts:
         ret, res = bird_command(host, proto, command)
         res = res.split("\n")
 
@@ -284,8 +286,9 @@ def summary(hosts, proto="ipv4"):
     return render_template('summary.html', summary=summary, command=command, errors=errors)
 
 
+@app.route("/detail/<hosts>")
 @app.route("/detail/<hosts>/<proto>")
-def detail(hosts, proto):
+def detail(hosts, proto="ipv4"):
     name = get_query()
 
     if not name:
@@ -296,7 +299,10 @@ def detail(hosts, proto):
 
     detail = {}
     errors = []
-    for host in hosts.split("+"):
+    hosts = hosts.split("+")
+    if hosts == ["all"]:
+        hosts = app.config["PROXY"].keys()
+    for host in hosts:
         ret, res = bird_command(host, proto, command)
         res = res.split("\n")
 
@@ -308,13 +314,14 @@ def detail(hosts, proto):
             errors.append("%s: bird command failed with error, %s" % (host, "\n".join(res)))
             continue
 
-        detail[host] = {"status": res[1], "description": add_links(res[2:])}
+        detail[host] = {"status": res[1], "description": add_links(res[2:]).decode("utf-8")}
 
     return render_template('detail.html', detail=detail, command=command, errors=errors)
 
 
+@app.route("/traceroute/<hosts>")
 @app.route("/traceroute/<hosts>/<proto>")
-def traceroute(hosts, proto):
+def traceroute(hosts, proto="ipv4"):
     q = get_query()
 
     if not q:
@@ -325,9 +332,16 @@ def traceroute(hosts, proto):
     if app.config.get("UNIFIED_DAEMON", False):
         if not ip_is_valid(q):
             try:
-                q = resolve_any(q)
+                if app.config.get("UNIFIED_TRACEROUTE_IPV6", True):
+                    q = resolve_any(q)
+                else:
+                    q = resolve(q, "A")
             except:
                 return error_page("%s is unresolvable" % q)
+        if ipv6_is_valid(q):
+            proto = "ipv6"
+        else:
+            proto = "ipv4"
     else:
         if proto == "ipv6" and not ipv6_is_valid(q):
             try:
@@ -342,7 +356,10 @@ def traceroute(hosts, proto):
 
     errors = []
     infos = {}
-    for host in hosts.split("+"):
+    hosts = hosts.split("+")
+    if hosts == ["all"]:
+        hosts = app.config["PROXY"].keys()
+    for host in hosts:
         status, resultat = bird_proxy(host, proto, "traceroute", q)
         if status is False:
             errors.append("%s" % resultat)
@@ -353,43 +370,51 @@ def traceroute(hosts, proto):
     return render_template('traceroute.html', infos=infos, errors=errors)
 
 
+@app.route("/adv/<hosts>")
 @app.route("/adv/<hosts>/<proto>")
-def show_route_filter(hosts, proto):
+def show_route_filter(hosts, proto="ipv4"):
     return show_route("adv", hosts, proto)
 
 
+@app.route("/adv_bgpmap/<hosts>")
 @app.route("/adv_bgpmap/<hosts>/<proto>")
-def show_route_filter_bgpmap(hosts, proto):
+def show_route_filter_bgpmap(hosts, proto="ipv4"):
     return show_route("adv_bgpmap", hosts, proto)
 
 
+@app.route("/where/<hosts>")
 @app.route("/where/<hosts>/<proto>")
-def show_route_where(hosts, proto):
+def show_route_where(hosts, proto="ipv4"):
     return show_route("where", hosts, proto)
 
 
+@app.route("/where_detail/<hosts>")
 @app.route("/where_detail/<hosts>/<proto>")
-def show_route_where_detail(hosts, proto):
+def show_route_where_detail(hosts, proto="ipv4"):
     return show_route("where_detail", hosts, proto)
 
 
+@app.route("/where_bgpmap/<hosts>")
 @app.route("/where_bgpmap/<hosts>/<proto>")
-def show_route_where_bgpmap(hosts, proto):
+def show_route_where_bgpmap(hosts, proto="ipv4"):
     return show_route("where_bgpmap", hosts, proto)
 
 
+@app.route("/prefix/<hosts>")
 @app.route("/prefix/<hosts>/<proto>")
-def show_route_for(hosts, proto):
+def show_route_for(hosts, proto="ipv4"):
     return show_route("prefix", hosts, proto)
 
 
+@app.route("/prefix_detail/<hosts>")
 @app.route("/prefix_detail/<hosts>/<proto>")
-def show_route_for_detail(hosts, proto):
+def show_route_for_detail(hosts, proto="ipv4"):
     return show_route("prefix_detail", hosts, proto)
 
 
+@app.route("/prefix_bgpmap/<hosts>")
 @app.route("/prefix_bgpmap/<hosts>/<proto>")
-def show_route_for_bgpmap(hosts, proto):
+def show_route_for_bgpmap(hosts, proto="ipv4"):
     return show_route("prefix_bgpmap", hosts, proto)
 
 
@@ -519,7 +544,9 @@ def show_bgpmap():
                         hop_label = ""
 
                 
-                add_node(_as, fillcolor=(first and "#F5A9A9" or "white"))
+                add_node(_as, fillcolor=("white"))
+                if first:
+                    nodes[_as].set_fillcolor("#F5A9A9")
                 if hop_label:
                     edge = add_edge(nodes[previous_as], nodes[_as], label=hop_label, fontsize="7")
                 else:
@@ -587,7 +614,8 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
             for rt_host, rt_ips in app.config["ROUTER_IP"].iteritems():
                 # Special case for internal routing
                 if peer_ip in rt_ips:
-                    path = [rt_host]
+                    paths.append([peer_protocol_name, rt_host])
+                    path = None
                     break
             else:
                 # ugly hack for good printing
@@ -603,8 +631,14 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
 
             if expr3.group(1).strip():
                 net_dest = expr3.group(1).strip()
+        
+        expr4 = re.search(r'^dev', line)
+        #handle on-link routes
+        if expr4:
+            paths.append([peer_protocol_name, net_dest])
+            path = None
 
-        if line.startswith("BGP.as_path:"):
+        if line.startswith("BGP.as_path:") and path:
             path.extend(line.replace("BGP.as_path:", "").strip().split(" "))
     
     if path:
@@ -677,7 +711,11 @@ def show_route(request_type, hosts, proto):
 
     detail = {}
     errors = []
-    for host in hosts.split("+"):
+    hosts = hosts.split("+")
+    if hosts == ["all"]:
+        hosts = app.config["PROXY"].keys()
+    allhosts = hosts[:]
+    for host in allhosts:
         ret, res = bird_command(host, proto, command)
         res = res.split("\n")
 
@@ -691,6 +729,15 @@ def show_route(request_type, hosts, proto):
 
         if bgpmap:
             detail[host] = build_as_tree_from_raw_bird_ouput(host, proto, res)
+            #for internal routes via hosts not selected
+            #add them to the list, but only show preferred route
+            if host not in hosts:
+                detail[host] = detail[host][:1]
+            for path in detail[host]:
+                if len(path) == 2:
+                    if (path[1] not in allhosts) and (path[1] in app.config["PROXY"]):
+                        allhosts.append(path[1])
+
         else:
             detail[host] = add_links(res)
 
