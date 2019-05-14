@@ -269,9 +269,9 @@ def summary(hosts, proto="ipv4"):
                     props["since"] = split[4]
 
                     if len(split) > 5:
-			# if bird is configured for 'timeformat protocol iso long'
+                        # if bird is configured for 'timeformat protocol iso long'
                         # then the 5th column contains the time, rather than info
-			match =	re.match(r'\d\d:\d\d:\d\d', split[5])
+                        match = re.match(r'\d\d:\d\d:\d\d', split[5])
                         if match:
                             props["info"] = ' '.join(split[6:]) if len(split) > 6 else ""
                         else:
