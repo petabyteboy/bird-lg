@@ -318,7 +318,7 @@ def detail(hosts, proto="ipv4"):
             errors.append("%s: bird command failed with error, %s" % (host, "\n".join(res)))
             continue
 
-        detail[host] = {"status": res[1], "description": add_links(res[2:]).decode("utf-8")}
+        detail[host] = {"status": res[1], "description": add_links(res[2:])}
 
     return render_template('detail.html', detail=detail, command=command, errors=errors)
 
@@ -717,7 +717,7 @@ def show_route(request_type, hosts, proto):
     errors = []
     hosts = hosts.split("+")
     if hosts == ["all"]:
-        hosts = app.config["PROXY"].keys()
+        hosts = list(app.config["PROXY"].keys())
     allhosts = hosts[:]
     for host in allhosts:
         ret, res = bird_command(host, proto, command)
