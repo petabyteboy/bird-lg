@@ -600,20 +600,47 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
     for line in text:
         line = line.strip()
 
-        expr = re.search(r'(.*)unicast\s+\[(\w+)\s+', line)
-        if expr:
-            if expr.group(1).strip():
-                net_dest = expr.group(1).strip()
-            peer_protocol_name = expr.group(2).strip()
+        # check for bird2 style line containing protocol name
+        # matches: ... unicast_[(protocol)_ ...
+        b2_unicast_line = re.search(r'(.*)unicast\s+\[(\w+)\s+', line)
+        if b2_unicast_line:
+            # save the net_dest and protocol name for later
+            if b2_unicast_line.group(1).strip():
+                net_dest = b2_unicast_line.group(1).strip()
+            peer_protocol_name = b2_unicast_line.group(2).strip()
 
-        expr2 = re.search(r'via\s+([0-9a-fA-F:\.]+)', line)
-        if expr2:
+        peer_match = False
+
+        # check line for bird1 style line
+        # matches: ___via_(next hop ip addr)_on_(iface)_[(protocol)_ ...
+        b1_peer_line = re.search(r'(.*)via\s+([0-9a-fA-F:\.]+)\s+on.*\[(\w+)\s+', line)
+        if b1_peer_line:
+            # save the net_dest, peer and protocol name for later
+            if b1_peer_line.group(1).strip():
+                net_dest = b1_peer_line.group(1).strip()
+            peer_ip = b1_peer_line.group(2).strip()
+            peer_protocol_name = b1_peer_line.group(3).strip()
+            # flag that a match was found
+            peer_match = True
+
+        else:
+            # if this wasn't a bird1 style peer line, then check for a bird2
+            # style line instead. Doing the check in the else clause prevents
+            # falsely matching bird1 lines
+            # matches: _via_(next hop address)
+            b2_peer_line = re.search(r'via\s+([0-9a-fA-F:\.]+)', line)
+            if b2_peer_line:
+                peer_ip = b2_peer_line.group(1).strip()
+                # flag that a match was found
+                peer_match = True
+
+        if peer_match:
+            # common code for when either a bird1 or bird2 peer line was found
             if path:
                 path.append(net_dest)
                 paths.append(path)
                 path = None
 
-            peer_ip = expr2.group(1).strip()
             # Check if via line is a internal route
             for rt_host, rt_ips in app.config["ROUTER_IP"].items():
                 # Special case for internal routing
@@ -621,24 +648,24 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
                     paths.append([peer_protocol_name, rt_host])
                     path = None
                     break
-            else:
-                # ugly hack for good printing
-                path = [ peer_protocol_name ]
-#                path = ["%s\r%s" % (peer_protocol_name, get_as_name(get_as_number_from_protocol_name(host, proto, peer_protocol_name)))]
-        
-        expr3 = re.search(r'(.*)unreachable\s+\[(\w+)\s+', line)
-        if expr3:
+                else:
+                    path = [ peer_protocol_name ]
+
+        # check for unreachable routes (common for bird1 & 2)
+        # matches: ...unreachable_[(protocol)_
+        unreachable_line = re.search(r'(.*)unreachable\s+\[(\w+)\s+', line)
+        if unreachable_line:
             if path:
                 path.append(net_dest)
                 paths.append(path)
                 path = None
 
-            if expr3.group(1).strip():
-                net_dest = expr3.group(1).strip()
-        
-        expr4 = re.search(r'^dev', line)
-        #handle on-link routes
-        if expr4:
+            if unreachable_line.group(1).strip():
+                net_dest = unreachable_line.group(1).strip()
+
+        # check for on-link routes
+        onlink_line = re.search(r'^dev', line)
+        if onlink_line:
             paths.append([peer_protocol_name, net_dest])
             path = None
 
