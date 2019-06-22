@@ -76,7 +76,7 @@
 						<div class="list-group history">
 							{% for hosts, proto, request_type, request_args in session.history %}
 							<a class="list-group-item list-group-item-action {% if loop.first %}active{% endif %}"
-	  href="/{{ [request_type, hosts]|join("/") }}{% if not config.UNIFIED_DAEMON %}/{{proto}}{% endif %}{% if request_args %}?q={{request_args}}{% endif %}">
+	  href="/{{ [request_type, hosts]|join("/") }}{% if not config.UNIFIED_DAEMON %}/{{proto}}{% endif %}{% if request_args %}?q={{request_args|urlencode}}{% endif %}">
                 {{hosts}}{% if not config.UNIFIED_DAEMON %}/{{proto}}{% endif %}: {{ commands_dict[request_type]|replace("...", request_args) }}
               </a>
 
