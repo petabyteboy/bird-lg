@@ -579,7 +579,7 @@ def show_bgpmap():
         node.set_shape("box")
 
     for _as in prepend_as:
-       for n in set([ n for h, d in prepend_as[_as].iteritems() for p, n in d.iteritems() ]):
+       for n in set([ n for h, d in prepend_as[_as].items() for p, n in d.items() ]):
            graph.add_edge(pydot.Edge(*(_as, _as), label=" %dx" % n, color="grey", fontcolor="grey"))
         
 
