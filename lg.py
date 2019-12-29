@@ -231,8 +231,15 @@ def whois():
     output = whois_command(query).replace("\n", "<br>")
     return jsonify(output=output, title=query)
 
+# Array of protocols that will be filtered from the summary listing
+SUMMARY_UNWANTED_PROTOS = ["Kernel", "Static", "Device", "BFD", "Direct", "RPKI"]
+# Array of regular expressions to match against protocol names,
+# and filter them from the summary view
+SUMMARY_UNWANTED_NAMES = [ ]
 
-SUMMARY_UNWANTED_PROTOS = ["Kernel", "Static", "Device", "BFD", "Direct"]
+# combine the unwanted names to a single regex
+COMBINED_UNWANTED_NAMES = '(?:%s)' % '|'.join(SUMMARY_UNWANTED_NAMES)
+
 
 @app.route("/summary/<hosts>")
 @app.route("/summary/<hosts>/<proto>")
@@ -260,9 +267,13 @@ def summary(hosts, proto="ipv4"):
         data = []
         for line in res[1:]:
             line = line.strip()
-            if line and (line.split() + [""])[1] not in SUMMARY_UNWANTED_PROTOS:
+            if line:
                 split = line.split()
-                if len(split) >= 5:
+                if (
+                        len(split) >= 5 and
+                        split[1] not in SUMMARY_UNWANTED_PROTOS and
+                        not re.match(COMBINED_UNWANTED_NAMES, split[0])
+                   ):
                     props = dict()
                     props["name"] = split[0]
                     props["proto"] = split[1]
@@ -282,8 +293,6 @@ def summary(hosts, proto="ipv4"):
                         props["info"] = ""
                         
                     data.append(props)
-                else:
-                    app.logger.warning("couldn't parse: %s", line)
 
         summary[host] = data
 
