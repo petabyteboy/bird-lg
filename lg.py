@@ -235,11 +235,12 @@ def whois():
 SUMMARY_UNWANTED_PROTOS = ["Kernel", "Static", "Device", "BFD", "Direct", "RPKI"]
 # Array of regular expressions to match against protocol names,
 # and filter them from the summary view
-SUMMARY_UNWANTED_NAMES = [ ]
+SUMMARY_UNWANTED_NAMES = []
 
-# combine the unwanted names to a single regex
-COMBINED_UNWANTED_NAMES = '(?:%s)' % '|'.join(SUMMARY_UNWANTED_NAMES)
-
+COMBINED_UNWANTED_NAMES = None
+if len(SUMMARY_UNWANTED_NAMES) > 0 :  # If regex list is not empty
+    # combine the unwanted names to a single regex
+    COMBINED_UNWANTED_NAMES = '(?:%s)' % '|'.join(SUMMARY_UNWANTED_NAMES)
 
 @app.route("/summary/<hosts>")
 @app.route("/summary/<hosts>/<proto>")
@@ -272,7 +273,7 @@ def summary(hosts, proto="ipv4"):
                 if (
                         len(split) >= 5 and
                         split[1] not in SUMMARY_UNWANTED_PROTOS and
-                        not re.match(COMBINED_UNWANTED_NAMES, split[0])
+                        (COMBINED_UNWANTED_NAMES is None or not re.match(COMBINED_UNWANTED_NAMES, split[0])) # If the list is empty or doesn't match the protocol name
                    ):
                     props = dict()
                     props["name"] = split[0]
