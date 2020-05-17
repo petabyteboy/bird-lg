@@ -3,3 +3,80 @@
  *
  */
 
+img {
+	filter: invert(1) hue-rotate(50deg);
+}
+
+table.dataTable .sorting:after,
+table.dataTable .sorting:before {
+	font-family: monospace;
+}
+
+.dropdown-menu {
+	background-color: #333;
+	border-color: #222;
+	color: white;
+}
+
+table.table-bordered {
+	background-color: #151515;
+	border-color: #444;
+	border-radius: 5px;
+}
+table.table-bordered th,
+table.table-bordered td {
+	border-color: #444;
+	border-bottom-color: #444;
+	border-top-color: #444;
+	border-left-color: #444;
+	border-right-color: #444;
+}
+pre {
+	background-color: #151515;
+	border: 1px solid #444;
+	color: white;
+	border-radius: 1px;
+	padding: 1em;
+}
+a, a:hover {
+	color: #60bbff;
+}
+
+html, body {
+	background-color: black;
+	color: white;
+}
+
+nav {
+	background-color: #333;
+	color: white;
+}
+
+.list-group-item {
+	background-color: #333;
+}
+
+.dropdown-item,
+.list-group-item-action,
+.navbar-light .navbar-text,
+.navbar-light .navbar-brand,
+.navbar-light .navbar-brand:hover,
+.navbar-light .navbar-brand:focus,
+nav a,
+nav a:hover {
+	color: white;
+}
+
+.list-group-item-action:focus,
+.list-group-item-action:hover,
+.dropdown-item:focus,
+.dropdown-item:hover {
+	background-color: #444;
+	color: white;
+}
+
+.form-control {
+	background-color: #555;
+	border-color: #222;
+	color: white;
+}
