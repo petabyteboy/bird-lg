@@ -688,7 +688,7 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
             path = None
 
         if line.startswith("BGP.as_path:") and path:
-            ASes = line.replace("BGP.as_path:", "").strip().split(" ")
+            ASes = re.sub(r'\s?\(.*\)', "", line.replace("BGP.as_path:", "")).strip().split(" ")
             if path:
                 path.extend(ASes)
             else:
