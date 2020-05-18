@@ -292,7 +292,7 @@ def summary(hosts, proto="ipv4"):
                             props["info"] = ' '.join(split[5:])
                     else:
                         props["info"] = ""
-                        
+
                     data.append(props)
 
         summary[host] = data
@@ -473,13 +473,14 @@ def show_bgpmap():
     data = get_query()
     if not data:
         abort(400)
-        
+
     data = base64.b64decode(data)
     data = json.loads(data.decode('utf-8'))
 
     graph = pydot.Dot('BGPMAP', graph_type='digraph')
 
     nodes = {}
+    subgraphs = {}
     edges = {}
     prepend_as = {}
 
@@ -489,11 +490,18 @@ def show_bgpmap():
         label = label.replace("<", "&lt;")
         return label
 
-    def add_node(_as, **kwargs):
+    def add_subgraph(_as, **kwargs):
+        if _as not in subgraphs:
+            subgraphs[_as] = pydot.Cluster("cluster_%s" % _as, label = "", **kwargs)
+            graph.add_subgraph(subgraphs[_as])
+        return subgraphs[_as]
+
+    def add_node(_as, g, **kwargs):
         if _as not in nodes:
-            kwargs["label"] = '<<TABLE CELLBORDER="0" BORDER="0" CELLPADDING="0" CELLSPACING="0"><TR><TD ALIGN="CENTER">' + escape(kwargs.get("label", get_as_name(_as))).replace("\r","<BR/>") + "</TD></TR></TABLE>>"
+            if "label" not in kwargs:
+                kwargs["label"] = '<<TABLE CELLBORDER="0" BORDER="0" CELLPADDING="0" CELLSPACING="0"><TR><TD ALIGN="CENTER">' + escape(kwargs.get("label", get_as_name(_as))).replace("\r","<BR/>") + "</TD></TR></TABLE>>"
             nodes[_as] = pydot.Node(_as, style="filled", fontsize="10", **kwargs)
-            graph.add_node(nodes[_as])
+            g.add_node(nodes[_as])
         return nodes[_as]
 
     def add_edge(_previous_as, _as, **kwargs):
@@ -510,27 +518,30 @@ def show_bgpmap():
 
             label_without_star = kwargs["label"].replace("*", "")
             if e.get_label() is not None:
-                labels = e.get_label().split("\r") 
+                labels = e.get_label().split("\r")
             else:
                 return edges[edge_tuple]
             if "%s*" % label_without_star not in labels:
-                labels = [ kwargs["label"] ]  + [ l for l in labels if not l.startswith(label_without_star) ] 
+                labels = [ kwargs["label"] ]  + [ l for l in labels if not l.startswith(label_without_star) ]
                 labels = sorted(labels, key=lambda x: x.endswith("*") and -1 or 1)
-                
+
                 label = escape("\r".join(labels))
                 e.set_label(label)
         return edges[edge_tuple]
 
     for host, asmaps in data.items():
-        add_node(host, label= "%s\r%s" % (host.upper(), app.config["DOMAIN"].upper()), shape="box", fillcolor="#F5A9A9")
-
         as_number = app.config["AS_NUMBER"].get(host, None)
         if as_number:
-            node = add_node(as_number, fillcolor="#F5A9A9")
+            subgraph = add_subgraph(as_number, fillcolor="#F5A9A9")
+            add_node(as_number, subgraph, fillcolor="#F5A9A9")
+        else:
+            subgraph = graph
+        add_node(host, subgraph, label = host.upper(), shape="box", fillcolor="#F5A9A9")
+        if as_number:
             edge = add_edge(as_number, nodes[host])
             edge.set_color("red")
             edge.set_style("bold")
-    
+
     #colors = [ "#009e23", "#1a6ec1" , "#d05701", "#6f879f", "#939a0e", "#0e9a93", "#9a0e85", "#56d8e1" ]
     previous_as = None
     hosts = list(data.keys())
@@ -551,20 +562,18 @@ def show_bgpmap():
                     if not prepend_as[_as][host].get(asmap[0], None):
                         prepend_as[_as][host][asmap[0]] = 1
                     prepend_as[_as][host][asmap[0]] += 1
-                    continue
 
                 if not hop:
                     hop = True
-                    if _as not in hosts:
-                        hop_label = _as 
-                        if first:
-                            hop_label = hop_label + "*"
+                    hop_label = _as
+                    asn1 = app.config["AS_NUMBER"].get(previous_as, "-1")
+                    asn2 = app.config["AS_NUMBER"].get(hop_label, "-2")
+                    if hop_label not in hosts or previous_as == hop_label or asn1 != asn2:
                         continue
-                    else:
-                        hop_label = ""
+                    if first:
+                        hop_label = hop_label + "*"
 
-                
-                add_node(_as, fillcolor=("white"))
+                add_node(_as, graph, fillcolor=("white"))
                 if first:
                     nodes[_as].set_fillcolor("#F5A9A9")
                 if hop_label:
@@ -585,16 +594,17 @@ def show_bgpmap():
             first = False
 
     if previous_as:
-        node = add_node(previous_as)
-        node.set_shape("box")
+        node = add_node(previous_as, graph)
+        #node.set_shape("box")
 
     for _as in prepend_as:
        for n in set([ n for h, d in prepend_as[_as].items() for p, n in d.items() ]):
            graph.add_edge(pydot.Edge(*(_as, _as), label=" %dx" % n, color="grey", fontcolor="grey"))
-        
+
 
     fmt = request.args.get('fmt', 'png')
     #response = Response("<pre>" + graph.create_dot() + "</pre>")
+    #print(graph.create_dot())
     if fmt == "png":
         response = Response(graph.create_png(), mimetype='image/png')
     elif fmt == "svg":
@@ -693,7 +703,7 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
                 path.extend(ASes)
             else:
                 path = ASes
-    
+
     if path:
         path.append(net_dest)
         paths.append(path)
