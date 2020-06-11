@@ -169,17 +169,11 @@ def bird_proxy(host, proto, service, query):
 @app.context_processor
 def inject_commands():
     commands = [
-            ("traceroute", "traceroute ..."),
             ("summary", "show protocols"),
             ("detail", "show protocols ... all"),
             ("prefix", "show route for ..."),
             ("prefix_detail", "show route for ... all"),
             ("prefix_bgpmap", "show route for ... (bgpmap)"),
-            ("where", "show route where net ~ [ ... ]"),
-            ("where_detail", "show route where net ~ [ ... ] all"),
-            ("where_bgpmap", "show route where net ~ [ ... ] (bgpmap)"),
-            ("adv", "show route ..."),
-            ("adv_bgpmap", "show route ... (bgpmap)"),
         ]
     commands_dict = {}
     for id, text in commands:
@@ -331,87 +325,6 @@ def detail(hosts, proto="ipv4"):
         detail[host] = {"status": res[1], "description": add_links(res[2:])}
 
     return render_template('detail.html', detail=detail, command=command, errors=errors)
-
-
-@app.route("/traceroute/<hosts>")
-@app.route("/traceroute/<hosts>/<proto>")
-def traceroute(hosts, proto="ipv4"):
-    q = get_query()
-
-    if not q:
-        abort(400)
-
-    set_session("traceroute", hosts, proto, q)
-
-    if app.config.get("UNIFIED_DAEMON", False):
-        if not ip_is_valid(q):
-            try:
-                if app.config.get("UNIFIED_TRACEROUTE_IPV6", True):
-                    q = resolve_any(q)
-                else:
-                    q = resolve(q, "A")
-            except:
-                return error_page("%s is unresolvable" % q)
-        if ipv6_is_valid(q):
-            proto = "ipv6"
-        else:
-            proto = "ipv4"
-    else:
-        if proto == "ipv6" and not ipv6_is_valid(q):
-            try:
-                q = resolve(q, "AAAA")
-            except:
-                return error_page("%s is unresolvable or invalid for %s" % (q, proto))
-        if proto == "ipv4" and not ipv4_is_valid(q):
-            try:
-                q = resolve(q, "A")
-            except:
-                return error_page("%s is unresolvable or invalid for %s" % (q, proto))
-
-    errors = []
-    infos = {}
-    hosts = hosts.split("+")
-    if hosts == ["all"]:
-        hosts = app.config["PROXY"].keys()
-    for host in hosts:
-        status, resultat = bird_proxy(host, proto, "traceroute", q)
-        if status is False:
-            errors.append("%s" % resultat)
-            continue
-
-
-        infos[host] = add_links(resultat)
-    return render_template('traceroute.html', infos=infos, errors=errors)
-
-
-@app.route("/adv/<hosts>")
-@app.route("/adv/<hosts>/<proto>")
-def show_route_filter(hosts, proto="ipv4"):
-    return show_route("adv", hosts, proto)
-
-
-@app.route("/adv_bgpmap/<hosts>")
-@app.route("/adv_bgpmap/<hosts>/<proto>")
-def show_route_filter_bgpmap(hosts, proto="ipv4"):
-    return show_route("adv_bgpmap", hosts, proto)
-
-
-@app.route("/where/<hosts>")
-@app.route("/where/<hosts>/<proto>")
-def show_route_where(hosts, proto="ipv4"):
-    return show_route("where", hosts, proto)
-
-
-@app.route("/where_detail/<hosts>")
-@app.route("/where_detail/<hosts>/<proto>")
-def show_route_where_detail(hosts, proto="ipv4"):
-    return show_route("where_detail", hosts, proto)
-
-
-@app.route("/where_bgpmap/<hosts>")
-@app.route("/where_bgpmap/<hosts>/<proto>")
-def show_route_where_bgpmap(hosts, proto="ipv4"):
-    return show_route("where_bgpmap", hosts, proto)
 
 
 @app.route("/prefix/<hosts>")
