@@ -3,7 +3,7 @@
  *
  */
 
-img {
+img, svg {
 	filter: invert(1) hue-rotate(50deg);
 }
 
