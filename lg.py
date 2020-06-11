@@ -379,16 +379,8 @@ def get_as_number_from_protocol_name(host, proto, protocol):
         return "?????"
 
 
-@app.route("/bgpmap/")
-def show_bgpmap():
-    """return a bgp map in a png file, from the json tree in q argument"""
-
-    data = get_query()
-    if not data:
-        abort(400)
-
-    data = base64.b64decode(data)
-    data = json.loads(data.decode('utf-8'))
+def render_img(data):
+    """return a bgp map in a png file, from the tree"""
 
     graph = pydot.Dot('BGPMAP', graph_type='digraph')
 
@@ -515,21 +507,7 @@ def show_bgpmap():
            graph.add_edge(pydot.Edge(*(_as, _as), label=" %dx" % n, color="grey", fontcolor="grey"))
 
 
-    fmt = request.args.get('fmt', 'png')
-    #response = Response("<pre>" + graph.create_dot() + "</pre>")
-    #print(graph.create_dot())
-    if fmt == "png":
-        response = Response(graph.create_png(), mimetype='image/png')
-    elif fmt == "svg":
-        response = Response(graph.create_svg(), mimetype='image/svg+xml')
-    else:
-        abort(400, "Incorrect format")
-    response.headers['Last-Modified'] = datetime.now()
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '-1'
-    return response
-
+    return graph.create_svg()
 
 
 def build_as_tree_from_raw_bird_ouput(host, proto, text):
@@ -687,6 +665,7 @@ def show_route(request_type, hosts, proto):
 
     detail = {}
     errors = []
+
     hosts = hosts.split("+")
     if hosts == ["all"]:
         hosts = list(app.config["PROXY"].keys())
@@ -718,15 +697,10 @@ def show_route(request_type, hosts, proto):
             detail[host] = add_links(res)
 
     if bgpmap:
-        # in python3 b64encode() encodes a byte-like object in to bytes
-        # so the json string needs to be encoded to bytes and then the
-        # base64 result decoded back to a string again
-        detail = json.dumps(detail)
-        detail = base64.b64encode(detail.encode('utf-8'))
-        detail = detail.decode('utf-8')
-
-    return render_template((bgpmap and 'bgpmap.html' or 'route.html'), detail=detail, command=command, expression=expression, errors=errors)
-
+        img = render_img(detail).decode('utf-8')
+        return render_template('bgpmap.html', img=img, command=command, expression=expression, errors=errors)
+    else:
+        return render_template('route.html', detail=detail, command=command, expression=expression, errors=errors)
 
 if __name__ == "__main__":
     app.run(app.config.get("BIND_IP", "0.0.0.0"), app.config.get("BIND_PORT", 5000))
