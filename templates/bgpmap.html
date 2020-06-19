@@ -51,6 +51,8 @@ const mouseDownHandler = (evt, x, y, touchEvent) => {
 	view.dragging = true;
 	view.dragStartMouseX = x;
 	view.dragStartMouseY = y;
+	view.dragStartOffsetX = view.offsetX;
+	view.dragStartOffsetY = view.offsetY;
 };
 
 const mouseMoveHandler = (evt, x, y, touchEvent) => {
