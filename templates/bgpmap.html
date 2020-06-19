@@ -41,7 +41,7 @@ const pinchDistance = (touchEvent) => {
 	return Math.abs(touchEvent.touches[0].pageX - touchEvent.touches[1].pageX) + Math.abs(touchEvent.touches[0].pageY - touchEvent.touches[1].pageY);
 };
 
-const mouseDownHandler = (x, y, touchEvent) => {
+const mouseDownHandler = (evt, x, y, touchEvent) => {
 	if (touchEvent && touchEvent.touches.length >= 2) {
 		view.pinching = true;
 		view.pinchStartDistance = pinchDistance(touchEvent);
@@ -53,20 +53,24 @@ const mouseDownHandler = (x, y, touchEvent) => {
 	view.dragStartMouseY = y;
 };
 
-const mouseMoveHandler = (x, y, touchEvent) => {
+const mouseMoveHandler = (evt, x, y, touchEvent) => {
 	console.log(x, y);
 	if (touchEvent && view.pinching) {
+		evt.preventDefault();
+		evt.stopPropagation();
 		view.scale = view.pinchStartScale * (pinchDistance(touchEvent) / view.pinchStartDistance);
 	}
 
 	if (view.dragging) {
+		evt.preventDefault();
+		evt.stopPropagation();
 		view.offsetX = view.dragStartOffsetX - (view.dragStartMouseX - x) / view.scale;
 		view.offsetY = view.dragStartOffsetY - (view.dragStartMouseY - y) / view.scale;
 		update();
 	}
 };
 
-const mouseUpHandler = (x, y, touchEvent) => {
+const mouseUpHandler = (evt, x, y, touchEvent) => {
 	if (touchEvent) {
 		view.dragging = touchEvent.touches.length >= 1;
 		view.pinching = touchEvent.touches.length >= 2;
@@ -81,13 +85,13 @@ const mouseUpHandler = (x, y, touchEvent) => {
 /* initialization */
 
 if ("ontouchstart" in document.documentElement) {
-	document.body.addEventListener("touchstart", (evt) => mouseDownHandler(evt.touches[0].pageX, evt.touches[0].pageY, evt));
-	window.addEventListener("touchmove", (evt) => mouseMoveHandler(evt.touches[0].pageX, evt.touches[0].pageY, evt));
-	window.addEventListener("touchend", (evt) => mouseUpHandler(evt.changedTouches[0].pageX * dpr, evt.changedTouches[0].pageY * dpr, evt));
+	document.body.addEventListener("touchstart", (evt) => mouseDownHandler(evt, evt.touches[0].pageX, evt.touches[0].pageY, evt));
+	window.addEventListener("touchmove", (evt) => mouseMoveHandler(evt, evt.touches[0].pageX, evt.touches[0].pageY, evt));
+	window.addEventListener("touchend", (evt) => mouseUpHandler(evt, evt.changedTouches[0].pageX * dpr, evt.changedTouches[0].pageY * dpr, evt));
 } else {
-	document.body.addEventListener("mousedown", (evt) => mouseDownHandler(evt.pageX, evt.pageY));
-	window.addEventListener("mousemove", (evt) => mouseMoveHandler(evt.pageX, evt.pageY));
-	window.addEventListener("mouseup", (evt) => mouseUpHandler(evt.pageX, evt.pageY));
+	document.body.addEventListener("mousedown", (evt) => mouseDownHandler(evt, evt.pageX, evt.pageY));
+	window.addEventListener("mousemove", (evt) => mouseMoveHandler(evt, evt.pageX, evt.pageY));
+	window.addEventListener("mouseup", (evt) => mouseUpHandler(evt, evt.pageX, evt.pageY));
 }
 
 window.addEventListener("wheel", handleWheel);
