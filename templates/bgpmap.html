@@ -56,7 +56,6 @@ const mouseDownHandler = (evt, x, y, touchEvent) => {
 };
 
 const mouseMoveHandler = (evt, x, y, touchEvent) => {
-	console.log(x, y);
 	if (touchEvent && view.pinching) {
 		evt.preventDefault();
 		evt.stopPropagation();
